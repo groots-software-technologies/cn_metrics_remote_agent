@@ -5,7 +5,7 @@
 ```
 wget -P /tmp/ https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/dev/cn_metrics_agent_installation.sh
 chmod +x /tmp/cn_metrics_agent_installation.sh
-/tmp/cn_metrics_agent_installation.sh -u john@cloudnetra.io -p StrongPAssWord -o ecd0e2d4-de8f-11ed-b1bf-2bafe6d048ec
+/tmp/cn_metrics_agent_installation.sh -t fIQ12345678wC9zNMYBXXXXXXX -o ecd0e2d4-de8f-11ed-b1bf-2axxx12345
 ```
 
 ### Cloudnetra Linux Remote Agent Un-Installation
