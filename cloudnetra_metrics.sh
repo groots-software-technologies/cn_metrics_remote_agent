@@ -121,7 +121,7 @@ download_and_execute_agent_script() {
     local env="$4"
     # Generate the URL for the script (development or production)
     local script_url
-    script_url=$(generate_agent_script_url "$action" "$monitor_type", "$env")
+    script_url=$(generate_agent_script_url "$action" "$monitor_type" "$env")
     
     log_message <<<"Downloading script from $script_url"
 
