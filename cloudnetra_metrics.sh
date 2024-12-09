@@ -143,7 +143,7 @@ download_and_execute_agent_script() {
     # Run the downloaded script
     if [ "$action" == "install" ]; then
         log_message <<<"Running the installation script"
-        ./"${script_url##*/}" -t "$digital_key" -e "$env"
+        ./"${script_url##*/}" -k "$digital_key" -e "$env"
     elif [ "$action" == "uninstall" ]; then
         log_message <<<"Running the uninstallation script"
         ./"${script_url##*/}"
