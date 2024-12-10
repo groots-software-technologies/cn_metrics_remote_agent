@@ -17,8 +17,8 @@ BAR_CHAR_DONE="#"
 BAR_CHAR_TODO="-"
 BAR_PERCENTAGE_SCALE=2
 
-# Default environment (prod)
-ENV="prod"
+# Default environment (main)
+ENV="main"
 
 # Function to log messages
 log_message() {
@@ -43,12 +43,12 @@ set_environment() {
     # Check if the environment is set via -e flag
     if [ "$ENV" == "dev" ]; then
         API_URL="https://dev-app.cloudnetra.io"
-    elif [ "$ENV" == "prod" ]; then
+    elif [ "$ENV" == "main" ]; then
         API_URL="https://app.cloudnetra.io"
     elif [ "$ENV" == "local" ]; then
         API_URL="http://localhost:3004"
     else
-        echo "Error: Invalid environment specified. Please use 'dev' or 'prod'."
+        echo "Error: Invalid environment specified. Please use 'dev' or 'main'."
         exit 1
     fi
 }
@@ -191,9 +191,9 @@ main() {
         esac
     done
 
-    # If no environment is set, default to 'prod'
+    # If no environment is set, default to 'main'
     if [ -z "$ENV" ]; then
-        ENV="prod"
+        ENV="main"
     fi
 
     # Set the environment and URLs
@@ -206,7 +206,7 @@ main() {
     fi
 
     # If the action is 'uninstall', skip the -k validation
-    if [ "$ACTION" != "uninstall" ] && [ -z "$DIGITAL_KEY" ]; then
+    if [ "$ACTION" = "install" ] && [ -z "$DIGITAL_KEY" ]; then
         echo "Error: Missing required parameter -k (DIGITAL_KEY)."
         exit 1
     fi
