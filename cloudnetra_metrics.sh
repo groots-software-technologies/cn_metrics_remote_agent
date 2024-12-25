@@ -77,75 +77,6 @@ set_environment() {
     fi
 }
 
-# Function to compare versions (fixed logic)
-compare_versions() {
-  local var1=$1
-  local var2=$2
-  local part1 part2
-
-  # Normalize versions to ensure all parts (major, minor, patch) are integers
-  # For example: 2.1 -> 2.1.0 and 1 -> 1.0.0
-  var1=$(echo "$var1" | awk -F'.' '{print $1 "." $2 "." ($3?$3:0)}')
-  var2=$(echo "$var2" | awk -F'.' '{print $1 "." $2 "." ($3?$3:0)}')
-
-  # Compare each part of the version (major, minor, patch)
-  for i in 1 2 3; do
-    part1=$(echo $var1 | cut -d "." -f $i)
-    part2=$(echo $var2 | cut -d "." -f $i)
-
-    # Ensure part1 and part2 are valid integers, default to 0 if empty
-    part1=${part1:-0}
-    part2=${part2:-0}
-
-    # Validate that both parts are numeric
-    if ! [[ "$part1" =~ ^[0-9]+$ ]] || ! [[ "$part2" =~ ^[0-9]+$ ]]; then
-      echo "Non-numeric version part detected"
-      return 4  # Return error code for non-numeric version parts
-    fi
-
-    # If part1 is less than part2, return 1 (indicating version1 < version2)
-    if [ "$part1" -lt "$part2" ]; then
-      return 0  # version1 < version2
-    # If part1 is greater than part2, return 2 (indicating version1 > version2)
-    elif [ "$part1" -gt "$part2" ]; then
-      return 2  # version1 > version2
-    fi
-  done
-
-  # If all parts are equal, return 0 (indicating version1 == version2)
-  return 0  # version1 == version2
-}
-
-
-# Check GLIBC version
-check_glibc_version() {
-  local required_version="2.33"
-  local current_version
-
-  # Extract GLIBC version
-  current_version=$(ldd --version 2>/dev/null | head -n1 | grep -oE "[0-9]+\.[0-9]+")
-
-  # Validate current_version is a single number
-  if [ -z "$current_version" ]; then
-    log_message "$RED" "Error: Unable to determine a valid GLIBC version."
-    exit 1
-  fi
-
-  # Compare versions using the compare_versions function
-  compare_versions "$required_version" "$current_version"
-  local comparison_result=$?
-
-  # Check the comparison result
-  if [ $comparison_result -eq 1 ]; then
-    log_message "$RED" "Error: GLIBC version $current_version is less than required $required_version. Please update GLIBC."
-    exit 1
-  elif [ $comparison_result -eq 2 ]; then
-    log_message "$GREEN" "GLIBC version $current_version is greater than or equal to $required_version."
-  else
-    log_message "$GREEN" "GLIBC version is sufficient to run CloudNetra Metrics Collector."
-  fi
-}
-
 # Fetch Machine ID
 get_machine_id() {
   if [ -f /etc/machine-id ]; then
@@ -320,9 +251,6 @@ main() {
 
     # Check if required tools are installed
     check_required_tools
-
-    # Check GLIBC version
-    check_glibc_version
 
     # Determine the OS and architecture
     check_os_architecture
