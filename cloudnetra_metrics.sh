@@ -1,83 +1,59 @@
 #!/bin/bash
 #######################################################
 # Program: CloudNetra Metrics Agent Installation.
-# Purpose: 
-#  - Monitoring the server health overview.
-#  - Can be run interactively for a clean and easy installation experience.
-# License:
-#  - Distributed in the hope that it will be useful, but under Groots Software Technologies @rights.
 #######################################################
 
-# Constants
 SCRIPTNAME=$(basename "$0")
 
-# Define color codes
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 RESET='\033[0m'
 
-# Logfile
+# Log
 LOGDIR="/var/log/cn_metrics/"
 LOGFILE="$LOGDIR/$SCRIPTNAME.log"
 
-# Create log directory and file
-if [ ! -d "$LOGDIR" ]; then
-    mkdir -p "$LOGDIR"
-fi
-if [ ! -f "$LOGFILE" ]; then
-    touch "$LOGFILE"
-fi
+mkdir -p "$LOGDIR"
+touch "$LOGFILE"
 
-# Function to log messages with colors and timestamp
 log_message() {
   local color="$1"
   local message="$2"
-  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')  # Get the current timestamp
-
-  # Format the log message
+  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
   local formatted_message="[$timestamp] : $message"
 
-  # Print the formatted message to the terminal with color
   echo -e "${color}${formatted_message}${RESET}"
-
-  # Log the formatted message with timestamp to the log file
-  echo "$formatted_message" >> $LOGFILE
+  echo "$formatted_message" >> "$LOGFILE"
 }
 
-
-
-# Default environment (main)
 ENV="main"
 
-# Check if required tools are installed
 check_required_tools() {
   local tools=(curl wget cut tar gzip sudo bc netstat)
   for tool in "${tools[@]}"; do
     if ! command -v $tool &>/dev/null; then
-      log_message "$RED" "Error: Required tool $tool is not installed. Please install it and retry."
+      log_message "$RED" "Error: Required tool $tool is not installed."
       exit 1
     fi
   done
 }
 
-# Function to check for environment
 set_environment() {
-    # Check if the environment is set via -e flag
-    if [ "$ENV" == "dev" ]; then
-        API_URL="https://dev-app.cloudnetra.io"
-    elif [ "$ENV" == "main" ]; then
-        API_URL="https://app.cloudnetra.io"
-    elif [ "$ENV" == "local" ]; then
-        API_URL="http://localhost:3004"
-    else
-        echo "Error: Invalid environment specified. Please use 'dev' or 'main'."
-        exit 1
-    fi
+  if [ "$ENV" == "dev" ]; then
+    API_URL="https://dev-app.cloudnetra.io"
+  elif [ "$ENV" == "main" ]; then
+    API_URL="https://app.cloudnetra.io"
+  elif [ "$ENV" == "local" ]; then
+    API_URL="http://localhost:3004"
+  else
+    log_message "$RED" "Invalid environment"
+    exit 1
+  fi
 }
 
-# Fetch Machine ID
 get_machine_id() {
   if [ -f /etc/machine-id ]; then
     MACHINE_ID=$(cat /etc/machine-id)
@@ -86,91 +62,60 @@ get_machine_id() {
   elif command -v hostnamectl &>/dev/null; then
     MACHINE_ID=$(hostnamectl | grep "Machine ID" | awk '{print $3}')
   else
-    log_message "$RED" "Error: Could not retrieve Machine ID."
+    log_message "$RED" "Machine ID not found"
     exit 1
   fi
 
-  if [ -z "$MACHINE_ID" ]; then
-    log_message "$RED" "Error: Machine ID is empty."
-    exit 1
-  fi
+  [ -z "$MACHINE_ID" ] && { log_message "$RED" "Machine ID empty"; exit 1; }
 }
 
-# Determine OS and architecture
 check_os_architecture() {
-  if [ "$(uname)" == "Linux" ]; then
-    OS="linux"
-  elif [ "$(uname)" == "Darwin" ]; then
-    OS="darwin"
-  else
-    echo "This operating system is not supported. The supported operating systems are Linux and Darwin"
-    exit 1
-  fi
+  case "$(uname)" in
+    Linux) OS="linux" ;;
+    Darwin) OS="darwin" ;;
+    *) log_message "$RED" "Unsupported OS"; exit 1 ;;
+  esac
 
   case "$(uname -m)" in
-    x86_64)
-      ARCH="amd64"
-      ;;
-    aarch64|arm64)
-      ARCH="arm64"
-      ;;
-    armv7l|armv6l)
-      ARCH="armv7"
-      ;;
-    *)
-      log_message "$RED" "Error: Unsupported architecture $(uname -m). Supported architectures: x86_64, aarch64, armv7."
-      exit 1
-      ;;
+    x86_64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    armv7l|armv6l) ARCH="armv7" ;;
+    *) log_message "$RED" "Unsupported architecture"; exit 1 ;;
   esac
 }
 
-
-# Function to generate the agent script URL
 generate_agent_script_url() {
     local action="$1"
     local monitor_type="$2"
-    local url
     local env="$3"
-    local base_monitor_type="$monitor_type"
-    local file_name="${ARCH}.sh"   # default for non-linux
+    local url
+    local file_name="${ARCH}.sh"
 
-# ✅ Only apply version logic for INSTALL + LINUX
     if [[ "$action" == "install" && "$monitor_type" == linux* ]]; then
-        base_monitor_type="linux"
-        # Extract version (linux1 → 1)
         if [[ "$monitor_type" =~ ^linux([0-9]+)$ ]]; then
             version="${BASH_REMATCH[1]}"
         else
-            version="0"   # default version
+            version="0"
         fi
-        # Match your repo naming (amd64V0.sh)
         file_name="${ARCH}V${version}.sh"
     fi
-    # ❗ For uninstall → always default file (no version)
+
     if [[ "$action" == "uninstall" ]]; then
-        base_monitor_type="$monitor_type"
         file_name="${ARCH}.sh"
     fi
 
- 
-# ✅ IMPORTANT: match your repo naming (V uppercase, no underscore)
-        file_name="${ARCH}V${version}.sh"
-    fi
-    
     if [ "$action" == "install" ]; then
-        # URL for installation script
-        url="https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/refs/heads/${env}/${OS}/${monitor_type}/install/${file_name}.sh"
+        url="https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/refs/heads/${env}/${OS}/${monitor_type}/install/${file_name}"
     elif [ "$action" == "uninstall" ]; then
-        # URL for uninstallation script
-        url="https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/refs/heads/${env}/${OS}/${monitor_type}/uninstall/${file_name}.sh"
+        url="https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/refs/heads/${env}/${OS}/${monitor_type}/uninstall/${file_name}"
     else
-        echo "Invalid action specified. Please use 'install' or 'uninstall'."
+        log_message "$RED" "Invalid action"
         exit 1
     fi
-    
+
     echo "$url"
 }
-# Function to download and install or uninstall the agent
+
 download_and_execute_agent_script() {
     local action="$1"
     local monitor_type="$2"
@@ -178,111 +123,68 @@ download_and_execute_agent_script() {
     local env="$4"
 
     local environment="$env"
-    if [ "$env" == "main" ]; then
-        environment="prod"
-    fi
+    [ "$env" == "main" ] && environment="prod"
 
-    # Generate the URL for the script (development or production)
-    local script_url
-    script_url=$(generate_agent_script_url "$action" "$monitor_type" "$env")
+    local script_url=$(generate_agent_script_url "$action" "$monitor_type" "$env")
 
-    log_message "$BLUE" "Downloading script from $script_url"
+    log_message "$BLUE" "Downloading: $script_url"
 
-    # Show progress bar during download using curl
-    curl -LO --progress-bar "$script_url" | while read -r line; do
-        # Handle the progress output if needed (you can add logging if necessary)
-        log_message "$BLUE" "Downloading in progress..." # Optional progress message
-    done
+    curl -LO "$script_url"
 
-    # Check if the file downloaded correctly
-    if [ ! -f "${script_url##*/}" ]; then
-        log_message "$RED" "Error: Failed to download the script. The file does not exist."
+    local file="${script_url##*/}"
+
+    if [ ! -f "$file" ]; then
+        log_message "$RED" "Download failed"
         exit 1
     fi
 
-    # Make the script executable
-    chmod +x "${script_url##*/}"
+    chmod +x "$file"
 
-    # Run the downloaded script
     if [ "$action" == "install" ]; then
-        log_message "$YELLOW" "Running the installation script"
-        ./"${script_url##*/}" -k "$digital_key" -e "$environment"
-    elif [ "$action" == "uninstall" ]; then
-        log_message "$YELLOW" "Running the uninstallation script"
-        ./"${script_url##*/}"
+        ./$file -k "$digital_key" -e "$environment"
+    else
+        ./$file
     fi
 
-    # Cleanup: Remove the downloaded agent script file
-    rm -f "${script_url##*/}"
-    log_message "$GREEN" "Script executed and removed."
+    rm -f "$file"
+    log_message "$GREEN" "Execution completed"
 }
 
-# Main function to execute the script logic
 main() {
 
-    # Show help if arguments are incorrect or if help is explicitly requested
-    if [ "${1}" = "--help" -o "${#}" -lt 4 ]; then
-        log_message "$YELLOW" "Usage: $SCRIPTNAME -m [monitor_type] -a [install/uninstall] -k [DIGITAL_KEY]
-
-        OPTION                               DESCRIPTION
-        -----------------------------------------------------
-        --help                               Help
-        -m [monitor_type]                    Type of monitor to install (linux, apache, other)
-        -a [install/uninstall]               Action to perform (install or uninstall)
-        -k [DIGITAL_KEY]                     CloudNetra Metrics Digital Key (required for install action)
-        -----------------------------------------------------"
+    if [ "$1" = "--help" ] || [ "$#" -lt 4 ]; then
+        echo "Usage: $SCRIPTNAME -m [monitor_type] -a [install/uninstall] -k [DIGITAL_KEY]"
         exit 0
     fi
 
-    # Parse command-line arguments
     while getopts "m:a:k:e:" OPT; do
         case $OPT in
             m) MONITOR_TYPE="$OPTARG" ;;
             a) ACTION="$OPTARG" ;;
             k) DIGITAL_KEY="$OPTARG" ;;
             e) ENV="$OPTARG" ;;
-            *)
-                log_message "$RED" "Invalid argument. Please use -h for help."
-                exit 3
-                ;;
+            *) exit 1 ;;
         esac
     done
 
-    # If no environment is set, default to 'main'
-    if [ -z "$ENV" ]; then
-        ENV="main"
-    fi
+    [ -z "$ENV" ] && ENV="main"
 
-    # Set the environment and URLs
     set_environment
 
-    # Validate the parameters
     if [ -z "$MONITOR_TYPE" ] || [ -z "$ACTION" ]; then
-        log_message "$RED" "Error: Missing required parameters."
+        log_message "$RED" "Missing parameters"
         exit 1
     fi
 
-    # If the action is 'uninstall', skip the -k validation
-    if [ "$ACTION" = "install" ] && [ -z "$DIGITAL_KEY" ]; then
-        log_message "$RED" "Error: Missing required parameter -k (DIGITAL_KEY)."
+    if [ "$ACTION" == "install" ] && [ -z "$DIGITAL_KEY" ]; then
+        log_message "$RED" "Digital key required"
         exit 1
     fi
 
-    # Validate the action parameter
-    if [ "$ACTION" != "install" ] && [ "$ACTION" != "uninstall" ]; then
-        log_message "$RED" "Error: Invalid action specified. Please use 'install' or 'uninstall'."
-        exit 1
-    fi
-
-    # Check if required tools are installed
     check_required_tools
-
-    # Determine the OS and architecture
     check_os_architecture
 
-    # Perform the chosen action (install or uninstall)
     download_and_execute_agent_script "$ACTION" "$MONITOR_TYPE" "$DIGITAL_KEY" "$ENV"
 }
 
-# Call the main function to execute the script
 main "$@"
