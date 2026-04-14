@@ -131,13 +131,38 @@ generate_agent_script_url() {
     local monitor_type="$2"
     local url
     local env="$3"
+    local base_monitor_type="$monitor_type"
+    local file_name="${ARCH}.sh"   # default for non-linux
+
+# ✅ Only apply version logic for INSTALL + LINUX
+    if [[ "$action" == "install" && "$monitor_type" == linux* ]]; then
+        base_monitor_type="linux"
+        # Extract version (linux1 → 1)
+        if [[ "$monitor_type" =~ ^linux([0-9]+)$ ]]; then
+            version="${BASH_REMATCH[1]}"
+        else
+            version="0"   # default version
+        fi
+        # Match your repo naming (amd64V0.sh)
+        file_name="${ARCH}V${version}.sh"
+    fi
+    # ❗ For uninstall → always default file (no version)
+    if [[ "$action" == "uninstall" ]]; then
+        base_monitor_type="$monitor_type"
+        file_name="${ARCH}.sh"
+    fi
+
+ 
+# ✅ IMPORTANT: match your repo naming (V uppercase, no underscore)
+        file_name="${ARCH}V${version}.sh"
+    fi
     
     if [ "$action" == "install" ]; then
         # URL for installation script
-        url="https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/refs/heads/${env}/${OS}/${monitor_type}/install/${ARCH}.sh"
+        url="https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/refs/heads/${env}/${OS}/${monitor_type}/install/${file_name}.sh"
     elif [ "$action" == "uninstall" ]; then
         # URL for uninstallation script
-        url="https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/refs/heads/${env}/${OS}/${monitor_type}/uninstall/${ARCH}.sh"
+        url="https://github.com/groots-software-technologies/cn_metrics_remote_agent/raw/refs/heads/${env}/${OS}/${monitor_type}/uninstall/${file_name}.sh"
     else
         echo "Invalid action specified. Please use 'install' or 'uninstall'."
         exit 1
