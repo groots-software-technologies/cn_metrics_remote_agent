@@ -111,20 +111,19 @@ set_binary_version() {
 }
 
 # -----------------------------
-# URL generator (FIXED)
+# URL generator
 # -----------------------------
 generate_agent_script_url() {
   local action="$1"
   local env="$2"
-  local version="$3"
 
   local file_name
 
-if [[ "$action" == "install" ]]; then
-  file_name="${ARCH}${BIN_VERSION}.sh"
-else
-  file_name="${ARCH}.sh"
-fi
+  if [[ "$action" == "install" ]]; then
+    file_name="${ARCH}${BIN_VERSION}.sh"
+  else
+    file_name="${ARCH}.sh"
+  fi
 
   echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/linux/linux/${action}/${file_name}"
 }
@@ -152,9 +151,15 @@ download_and_execute_agent_script() {
     if [ $? -eq 0 ]; then
       chmod +x agent.sh
 
+      # ✅ ENV FIX (main → prod)
+      local runtime_env="$env"
+      if [[ "$env" == "main" ]]; then
+        runtime_env="prod"
+      fi
+
       if [ "$action" == "install" ]; then
         log_message "$YELLOW" "Executing install script ($version)"
-        ./agent.sh -k "$digital_key" -e "$env"
+        ./agent.sh -k "$digital_key" -e "$runtime_env"
       else
         log_message "$YELLOW" "Executing uninstall script"
         ./agent.sh
