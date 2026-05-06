@@ -63,7 +63,6 @@ check_os_architecture() {
   case "$(uname -m)" in
     x86_64) ARCH="amd64" ;;
     aarch64|arm64) ARCH="arm64" ;;
-    armv7l|armv6l) ARCH="armv7" ;;
     *) log_message "$RED" "Unsupported architecture"; exit 1 ;;
   esac
 }
@@ -72,42 +71,32 @@ check_os_architecture() {
 # OS VERSION → V0 / V1
 # -----------------------------
 set_binary_version() {
-  if [ -f /etc/os-release ]; then
-    . /etc/os-release
+  . /etc/os-release
 
-    OS_ID=$(echo "$ID" | tr '[:upper:]' '[:lower:]')
-    OS_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
+  OS_ID=$(echo "$ID" | tr '[:upper:]' '[:lower:]')
+  OS_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
 
-    log_message "$BLUE" "Detected OS: $OS_ID $OS_VERSION"
+  log_message "$BLUE" "Detected OS: $OS_ID $OS_VERSION"
 
-    case "$OS_ID" in
-      ubuntu)
-        if [[ "$OS_VERSION" == "18" || "$OS_VERSION" == "20" ]]; then
-          BIN_VERSION="V0"
-        else
-          BIN_VERSION="V1"
-        fi
-        ;;
-      rhel)
-        [[ "$OS_VERSION" == "8" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
-        ;;
-      amzn)
-        [[ "$OS_VERSION" == "2" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
-        ;;
-      centos)
-        [[ "$OS_VERSION" == "7" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
-        ;;
-      *)
-        log_message "$YELLOW" "Unknown OS → default V1"
-        BIN_VERSION="V1"
-        ;;
-    esac
+  case "$OS_ID" in
+    ubuntu)
+      [[ "$OS_VERSION" == "18" || "$OS_VERSION" == "20" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
+      ;;
+    rhel)
+      [[ "$OS_VERSION" == "8" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
+      ;;
+    amzn)
+      [[ "$OS_VERSION" == "2" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
+      ;;
+    centos)
+      [[ "$OS_VERSION" == "7" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
+      ;;
+    *)
+      BIN_VERSION="V1"
+      ;;
+  esac
 
-    log_message "$GREEN" "Selected binary: ${ARCH}${BIN_VERSION}.sh"
-  else
-    log_message "$RED" "OS detection failed"
-    exit 1
-  fi
+  log_message "$GREEN" "Selected binary: ${ARCH}${BIN_VERSION}.sh"
 }
 
 # -----------------------------
@@ -117,15 +106,13 @@ generate_agent_script_url() {
   local action="$1"
   local env="$2"
 
-  local file_name
-
   if [[ "$action" == "install" ]]; then
-    file_name="${ARCH}${BIN_VERSION}.sh"
+    FILE="${ARCH}${BIN_VERSION}.sh"
   else
-    file_name="${ARCH}.sh"
+    FILE="${ARCH}.sh"
   fi
 
-  echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/linux/linux/${action}/${file_name}"
+  echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/linux/linux/${action}/${FILE}"
 }
 
 # -----------------------------
@@ -141,27 +128,24 @@ download_and_execute_agent_script() {
 
   for version in "$PRIMARY_VERSION" "$FALLBACK_VERSION"; do
 
-    local url
     url=$(generate_agent_script_url "$action" "$env")
-
     log_message "$BLUE" "Downloading: $url"
 
-    curl -f -L --retry 3 --connect-timeout 10 -o agent.sh "$url"
+    curl -f -L --retry 3 -o agent.sh "$url"
 
     if [ $? -eq 0 ]; then
       chmod +x agent.sh
 
-      # ✅ ENV FIX (main → prod)
-      local runtime_env="$env"
-      if [[ "$env" == "main" ]]; then
-        runtime_env="prod"
-      fi
+      # ✅ FIXED ENV MAPPING
+      runtime_env="$env"
+      [[ "$env" == "main" ]] && runtime_env="prod"
+
+      log_message "$BLUE" "Passing ENV to agent: $runtime_env"
 
       if [ "$action" == "install" ]; then
         log_message "$YELLOW" "Executing install script ($version)"
         ./agent.sh -k "$digital_key" -e "$runtime_env"
       else
-        log_message "$YELLOW" "Executing uninstall script"
         ./agent.sh
       fi
 
@@ -169,7 +153,7 @@ download_and_execute_agent_script() {
       log_message "$GREEN" "Execution completed"
       return 0
     else
-      log_message "$YELLOW" "Download failed for ${version}, trying fallback..."
+      log_message "$YELLOW" "Download failed for ${version}, retrying..."
     fi
   done
 
@@ -187,19 +171,19 @@ main() {
       a) ACTION="$OPTARG" ;;
       k) DIGITAL_KEY="$OPTARG" ;;
       e) ENV="$OPTARG" ;;
-      *) log_message "$RED" "Invalid argument"; exit 1 ;;
+      *) exit 1 ;;
     esac
   done
 
   [ -z "$ENV" ] && ENV="main"
 
   if [ -z "$MONITOR_TYPE" ] || [ -z "$ACTION" ]; then
-    log_message "$RED" "Missing required parameters"
+    log_message "$RED" "Missing parameters"
     exit 1
   fi
 
   if [ "$ACTION" == "install" ] && [ -z "$DIGITAL_KEY" ]; then
-    log_message "$RED" "Digital key required for install"
+    log_message "$RED" "Digital key required"
     exit 1
   fi
 
