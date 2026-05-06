@@ -111,11 +111,11 @@ generate_agent_script_url() {
 
   local file_name
 
-  if [[ "$action" == "install" ]]; then
-    file_name="${ARCH}${version}.sh"
-  else
-    file_name="${ARCH}.sh"
-  fi
+if [[ "$action" == "install" ]]; then
+  file_name="${ARCH}${BIN_VERSION}.sh"
+else
+  file_name="${ARCH}.sh"
+fi
 
   echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/linux/linux/${action}/${file_name}"
 }
