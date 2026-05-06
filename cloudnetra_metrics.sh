@@ -1,5 +1,14 @@
 #!/bin/bash
+#######################################################
+# Program: CloudNetra Metrics Agent Installation.
+# Purpose: 
+#  - Monitoring the server health overview.
+#  - Can be run interactively for a clean and easy installation experience.
+# License:
+#  - Distributed in the hope that it will be useful, but under Groots Software Technologies @rights.
+#######################################################
 
+# Constants
 SCRIPTNAME=$(basename "$0")
 
 # Colors
