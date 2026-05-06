@@ -134,7 +134,7 @@ download_and_execute_agent_script() {
   for version in "$PRIMARY_VERSION" "$FALLBACK_VERSION"; do
 
     local url
-    url=$(generate_agent_script_url "$action" "$env" "$version")
+    url=$(generate_agent_script_url "$action" "$env")
 
     log_message "$BLUE" "Downloading: $url"
 
