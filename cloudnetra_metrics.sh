@@ -79,19 +79,15 @@ set_binary_version() {
           BIN_VERSION="V1"
         fi
         ;;
-
       rhel)
         [[ "$OS_VERSION" == "8" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
         ;;
-
       amzn)
         [[ "$OS_VERSION" == "2" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
         ;;
-
       centos)
         [[ "$OS_VERSION" == "7" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
         ;;
-
       *)
         log_message "$YELLOW" "Unknown OS → default V1"
         BIN_VERSION="V1"
@@ -106,7 +102,7 @@ set_binary_version() {
 }
 
 # -----------------------------
-# URL generator
+# URL generator (FIXED)
 # -----------------------------
 generate_agent_script_url() {
   local action="$1"
@@ -142,26 +138,22 @@ download_and_execute_agent_script() {
 
     log_message "$BLUE" "Downloading: $url"
 
-    curl -f -L --retry 3 --connect-timeout 10 -O "$url"
+    curl -f -L --retry 3 --connect-timeout 10 -o agent.sh "$url"
 
     if [ $? -eq 0 ]; then
-      local file="${url##*/}"
+      chmod +x agent.sh
 
-      if [ -f "$file" ]; then
-        chmod +x "$file"
-
-        if [ "$action" == "install" ]; then
-          log_message "$YELLOW" "Executing install script ($version)"
-          ./$file -k "$digital_key" -e "$env"
-        else
-          log_message "$YELLOW" "Executing uninstall script"
-          ./$file
-        fi
-
-        rm -f "$file"
-        log_message "$GREEN" "Execution completed"
-        return 0
+      if [ "$action" == "install" ]; then
+        log_message "$YELLOW" "Executing install script ($version)"
+        ./agent.sh -k "$digital_key" -e "$env"
+      else
+        log_message "$YELLOW" "Executing uninstall script"
+        ./agent.sh
       fi
+
+      rm -f agent.sh
+      log_message "$GREEN" "Execution completed"
+      return 0
     else
       log_message "$YELLOW" "Download failed for ${version}, trying fallback..."
     fi
