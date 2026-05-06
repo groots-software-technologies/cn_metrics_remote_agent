@@ -28,6 +28,9 @@ log_message() {
 
 ENV="main"
 
+# -----------------------------
+# Required tools
+# -----------------------------
 check_required_tools() {
   local tools=(curl wget cut tar gzip sudo bc netstat)
   for tool in "${tools[@]}"; do
@@ -38,6 +41,9 @@ check_required_tools() {
   done
 }
 
+# -----------------------------
+# OS & ARCH
+# -----------------------------
 check_os_architecture() {
   case "$(uname)" in
     Linux) OS="linux" ;;
@@ -53,75 +59,121 @@ check_os_architecture() {
   esac
 }
 
-# Normalize monitor input (linux, linux1, linux_v1 → version)
-get_version() {
-  local input="$1"
+# -----------------------------
+# OS VERSION → V0 / V1
+# -----------------------------
+set_binary_version() {
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
 
-  if [[ "$input" =~ ^linux[_-]?([0-9]+)$ ]]; then
-    echo "${BASH_REMATCH[1]}"
+    OS_ID=$(echo "$ID" | tr '[:upper:]' '[:lower:]')
+    OS_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
+
+    log_message "$BLUE" "Detected OS: $OS_ID $OS_VERSION"
+
+    case "$OS_ID" in
+      ubuntu)
+        if [[ "$OS_VERSION" == "18" || "$OS_VERSION" == "20" ]]; then
+          BIN_VERSION="V0"
+        else
+          BIN_VERSION="V1"
+        fi
+        ;;
+
+      rhel)
+        [[ "$OS_VERSION" == "8" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
+        ;;
+
+      amzn)
+        [[ "$OS_VERSION" == "2" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
+        ;;
+
+      centos)
+        [[ "$OS_VERSION" == "7" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
+        ;;
+
+      *)
+        log_message "$YELLOW" "Unknown OS → default V1"
+        BIN_VERSION="V1"
+        ;;
+    esac
+
+    log_message "$GREEN" "Selected binary: ${ARCH}${BIN_VERSION}.sh"
   else
-    echo "0"
+    log_message "$RED" "OS detection failed"
+    exit 1
   fi
 }
 
+# -----------------------------
+# URL generator
+# -----------------------------
 generate_agent_script_url() {
   local action="$1"
-  local monitor_type="$2"
-  local env="$3"
+  local env="$2"
+  local version="$3"
 
-  local version=$(get_version "$monitor_type")
+  local file_name
 
-  local file_name="${ARCH}V${version}.sh"
-
-  if [[ "$action" == "uninstall" ]]; then
+  if [[ "$action" == "install" ]]; then
+    file_name="${ARCH}${version}.sh"
+  else
     file_name="${ARCH}.sh"
   fi
 
-  # ✅ FIXED: folder is always linux (NOT linux1)
-  local url="https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/${OS}/linux/${action}/${file_name}"
-
-  echo "$url"
+  echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/linux/linux/${action}/${file_name}"
 }
 
+# -----------------------------
+# Download + Execute
+# -----------------------------
 download_and_execute_agent_script() {
   local action="$1"
-  local monitor_type="$2"
-  local digital_key="$3"
-  local env="$4"
+  local digital_key="$2"
+  local env="$3"
 
-  local script_url
-  script_url=$(generate_agent_script_url "$action" "$monitor_type" "$env")
+  local PRIMARY_VERSION="$BIN_VERSION"
+  local FALLBACK_VERSION="V1"
 
-  log_message "$BLUE" "Downloading: $script_url"
+  for version in "$PRIMARY_VERSION" "$FALLBACK_VERSION"; do
 
-  curl -f -LO "$script_url"
+    local url
+    url=$(generate_agent_script_url "$action" "$env" "$version")
 
-  if [ $? -ne 0 ]; then
-    log_message "$RED" "Download failed. Check URL or repo path."
-    exit 1
-  fi
+    log_message "$BLUE" "Downloading: $url"
 
-  local file="${script_url##*/}"
+    curl -f -L --retry 3 --connect-timeout 10 -O "$url"
 
-  if [ ! -f "$file" ]; then
-    log_message "$RED" "File not found after download"
-    exit 1
-  fi
+    if [ $? -eq 0 ]; then
+      local file="${url##*/}"
 
-  chmod +x "$file"
+      if [ -f "$file" ]; then
+        chmod +x "$file"
 
-  if [ "$action" == "install" ]; then
-    log_message "$YELLOW" "Running install script"
-    ./$file -k "$digital_key" -e "$env"
-  else
-    log_message "$YELLOW" "Running uninstall script"
-    ./$file
-  fi
+        if [ "$action" == "install" ]; then
+          log_message "$YELLOW" "Executing install script ($version)"
+          ./$file -k "$digital_key" -e "$env"
+        else
+          log_message "$YELLOW" "Executing uninstall script"
+          ./$file
+        fi
 
-  rm -f "$file"
-  log_message "$GREEN" "Execution completed"
+        rm -f "$file"
+        log_message "$GREEN" "Execution completed"
+        return 0
+      fi
+    else
+      log_message "$YELLOW" "Download failed for ${version}, trying fallback..."
+    fi
+  done
+
+  log_message "$RED" "All download attempts failed"
+  exit 1
 }
 
+# -----------------------------
+# MAIN
+# -----------------------------
 main() {
   while getopts "m:a:k:e:" opt; do
     case $opt in
@@ -147,8 +199,9 @@ main() {
 
   check_required_tools
   check_os_architecture
+  set_binary_version
 
-  download_and_execute_agent_script "$ACTION" "$MONITOR_TYPE" "$DIGITAL_KEY" "$ENV"
+  download_and_execute_agent_script "$ACTION" "$DIGITAL_KEY" "$ENV"
 }
 
 main "$@"
