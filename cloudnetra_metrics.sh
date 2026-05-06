@@ -63,7 +63,6 @@ check_os_architecture() {
   case "$(uname -m)" in
     x86_64) ARCH="amd64" ;;
     aarch64|arm64) ARCH="arm64" ;;
-    armv7l|armv6l) ARCH="armv7" ;;
     *) log_message "$RED" "Unsupported architecture"; exit 1 ;;
   esac
 }
@@ -82,11 +81,7 @@ set_binary_version() {
 
     case "$OS_ID" in
       ubuntu)
-        if [[ "$OS_VERSION" == "18" || "$OS_VERSION" == "20" ]]; then
-          BIN_VERSION="V0"
-        else
-          BIN_VERSION="V1"
-        fi
+        [[ "$OS_VERSION" == "18" || "$OS_VERSION" == "20" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
         ;;
       rhel)
         [[ "$OS_VERSION" == "8" ]] && BIN_VERSION="V0" || BIN_VERSION="V1"
@@ -111,20 +106,19 @@ set_binary_version() {
 }
 
 # -----------------------------
-# URL generator (FIXED)
+# URL generator
 # -----------------------------
 generate_agent_script_url() {
   local action="$1"
   local env="$2"
-  local version="$3"
 
   local file_name
 
-if [[ "$action" == "install" ]]; then
-  file_name="${ARCH}${BIN_VERSION}.sh"
-else
-  file_name="${ARCH}.sh"
-fi
+  if [[ "$action" == "install" ]]; then
+    file_name="${ARCH}${BIN_VERSION}.sh"
+  else
+    file_name="${ARCH}.sh"
+  fi
 
   echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/linux/linux/${action}/${file_name}"
 }
@@ -152,9 +146,17 @@ download_and_execute_agent_script() {
     if [ $? -eq 0 ]; then
       chmod +x agent.sh
 
+      # ✅ ENV MAPPING FIX
+      local runtime_env="$env"
+      if [[ "$env" == "main" ]]; then
+        runtime_env="prod"
+      fi
+
+      log_message "$BLUE" "Passing ENV to agent: $runtime_env"
+
       if [ "$action" == "install" ]; then
         log_message "$YELLOW" "Executing install script ($version)"
-        ./agent.sh -k "$digital_key" -e "$env"
+        ./agent.sh -k "$digital_key" -e "$runtime_env"
       else
         log_message "$YELLOW" "Executing uninstall script"
         ./agent.sh
@@ -194,7 +196,7 @@ main() {
   fi
 
   if [ "$ACTION" == "install" ] && [ -z "$DIGITAL_KEY" ]; then
-    log_message "$RED" "Digital key required for install"
+    log_message "$RED" "Digital key required"
     exit 1
   fi
 
