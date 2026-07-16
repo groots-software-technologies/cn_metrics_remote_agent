@@ -253,21 +253,19 @@ download_and_execute_agent_script() {
     local versions
 
     # Linux install uses V0/V1 binaries
-	if [[ "$monitor_type" == "linux" && "$action" == "install" ]]; then
-    	versions=("$BIN_VERSION")
+# Linux install uses V0/V1 binaries
+if [[ "$monitor_type" == "linux" && "$action" == "install" ]]; then
+    versions=("$BIN_VERSION")
 
+    # Fallback to V1 if V0 download fails
     if [[ "$BIN_VERSION" != "V1" ]]; then
         versions+=("V1")
     fi
-	else
-    	versions=("")
-	fi
-    else
-        # All other agents use normal arm64.sh / amd64.sh
-        versions=("")
-    fi
-
-    for version in "${versions[@]}"; do
+else
+    # All other agents use normal arm64.sh / amd64.sh
+    versions=("")
+fi
+for version in "${versions[@]}"; do
 
         local script_url
         script_url=$(
@@ -279,7 +277,8 @@ download_and_execute_agent_script() {
         )
 
         log_message "$BLUE" "Downloading: $script_url"
-
+log_message "$BLUE" \
+"Monitor=$monitor_type Action=$action Version=$version"
         if curl \
             -f \
             -L \
