@@ -219,23 +219,23 @@ log_message "$GREEN" \
 # Build Agent Download URL
 ###############################################################################
 generate_agent_script_url() {
-local action="$1"
-local monitor_type="$2"
-local env="$3"
-local version="$4"
-local file_name
-if [ "$monitor_type" = "linux" ]; then
-	if [ "$action" = "install" ]; then
-		file_name="${ARCH}${version}.sh"
-	else
-		file_name="${ARCH}.sh"
-	fi
-else
-	file_name="${ARCH}.sh"
-fi
-log_message "$BLUE" \
-"Monitor: $monitor_type | Action: $action | Version: $version"
-echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/${OS}/${monitor_type}/${action}/${file_name}"
+    local action="$1"
+    local monitor_type="$2"
+    local env="$3"
+    local version="$4"
+    local file_name
+
+    if [ "$monitor_type" = "linux" ]; then
+        if [ "$action" = "install" ]; then
+            file_name="${ARCH}${version}.sh"
+        else
+            file_name="${ARCH}.sh"
+        fi
+    else
+        file_name="${ARCH}.sh"
+    fi
+
+    echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/${OS}/${monitor_type}/${action}/${file_name}"
 }
 ###############################################################################
 # Download and Execute Agent
@@ -372,12 +372,17 @@ done
 validate_inputs
 check_required_tools
 check_os_architecture
-set_binary_version
+
+# Binary version is only required for Linux install agent
+if [[ "$MONITOR_TYPE" == "linux" && "$ACTION" == "install" ]]; then
+    set_binary_version
+fi
+
 download_and_execute_agent_script \
-	"$ACTION" \
-	"$MONITOR_TYPE" \
-	"$DIGITAL_KEY" \
-	"$ENV"
+    "$ACTION" \
+    "$MONITOR_TYPE" \
+    "$DIGITAL_KEY" \
+    "$ENV"
 }
 ###############################################################################
 # Entry Point
