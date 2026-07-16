@@ -239,74 +239,82 @@ echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_
 # Download and Execute Agent
 ###############################################################################
 download_and_execute_agent_script() {
-local action="$1"
-local monitor_type="$2"
-local digital_key="$3"
-local env="$4"
-local runtime_env="$env"
-if [ "$env" = "main" ]; then
-	runtime_env="prod"
-fi
-local versions
-if [ "$monitor_type" = "linux" ]; then
-versions=("$BIN_VERSION")
-if [ "$BIN_VERSION" != "V1" ]; then
-	versions+=("V1")
-fi
-else
-versions=("")
-fi
-for version in "${versions[@]}"; do
-	local script_url
-	script_url=$(
-		generate_agent_script_url \
-		"$action" \
-		"$monitor_type" \
-		"$env" \
-		"$version"
-	)
-	log_message "$BLUE" \
-	"Downloading: $script_url"
-	if curl \
-		-f \
-		-L \
-		--retry 3 \
-		--connect-timeout 10 \
-		-o agent.sh \
-		"$script_url"
-	then
-		chmod +x agent.sh
-		if [ "$action" = "install" ]; then
-./agent.sh -k "$digital_key" -e "$runtime_env"
-else
-./agent.sh
-fi
+    local action="$1"
+    local monitor_type="$2"
+    local digital_key="$3"
+    local env="$4"
 
-agent_exit_code=$?
+    local runtime_env="$env"
+    if [[ "$env" == "main" ]]; then
+        runtime_env="prod"
+    fi
 
-rm -f agent.sh
+    local versions
 
-if [ $agent_exit_code -eq 0 ]; then
-log_message "$GREEN" \
-"Execution completed successfully."
-else
-log_message "$RED" \
-"Agent script execution failed."
-exit $agent_exit_code
-fi
-		return 0
-	fi
-if [ "$monitor_type" = "linux" ]; then
-log_message "$YELLOW" \
-"Download failed for ${ARCH}${version}.sh"
-else
-log_message "$YELLOW" \
-"Download failed for ${ARCH}.sh"
-fi
-done
-log_message "$RED" \
-"All download attempts failed."
-exit 1
+    # Linux install uses V0/V1 binaries
+    if [[ "$monitor_type" == "linux" && "$action" == "install" ]]; then
+        versions=("$BIN_VERSION")
+
+        # Fallback to V1 if V0 download fails
+        if [[ "$BIN_VERSION" != "V1" ]]; then
+            versions+=("V1")
+        fi
+    else
+        # All other agents use normal arm64.sh / amd64.sh
+        versions=("")
+    fi
+
+    for version in "${versions[@]}"; do
+
+        local script_url
+        script_url=$(
+            generate_agent_script_url \
+                "$action" \
+                "$monitor_type" \
+                "$env" \
+                "$version"
+        )
+
+        log_message "$BLUE" "Downloading: $script_url"
+
+        if curl \
+            -f \
+            -L \
+            --retry 3 \
+            --connect-timeout 10 \
+            -o agent.sh \
+            "$script_url"
+        then
+            chmod +x agent.sh
+
+            if [[ "$action" == "install" ]]; then
+                ./agent.sh -k "$digital_key" -e "$runtime_env"
+            else
+                ./agent.sh
+            fi
+
+            agent_exit_code=$?
+
+            rm -f agent.sh
+
+            if [[ $agent_exit_code -eq 0 ]]; then
+                log_message "$GREEN" "Execution completed successfully."
+                return 0
+            else
+                log_message "$RED" "Agent script execution failed."
+                exit $agent_exit_code
+            fi
+        fi
+
+        if [[ "$monitor_type" == "linux" && "$action" == "install" ]]; then
+            log_message "$YELLOW" "Download failed for ${ARCH}${version}.sh"
+        else
+            log_message "$YELLOW" "Download failed for ${ARCH}.sh"
+        fi
+    done
+
+    log_message "$RED" "All download attempts failed."
+    exit 1
 }
 ###############################################################################
 # Validate User Input
