@@ -233,6 +233,8 @@ if [ "$monitor_type" = "linux" ]; then
 else
 	file_name="${ARCH}.sh"
 fi
+log_message "$BLUE" \
+"Monitor: $monitor_type | Action: $action | Version: $version"
 echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/${OS}/${monitor_type}/${action}/${file_name}"
 }
 ###############################################################################
