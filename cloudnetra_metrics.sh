@@ -223,15 +223,14 @@ generate_agent_script_url() {
     local monitor_type="$2"
     local env="$3"
     local version="$4"
+
     local file_name
 
-    if [ "$monitor_type" = "linux" ]; then
-        if [ "$action" = "install" ]; then
-            file_name="${ARCH}${version}.sh"
-        else
-            file_name="${ARCH}.sh"
-        fi
+    # Linux agent uses versioned binaries
+    if [[ "$monitor_type" == "linux" && "$action" == "install" ]]; then
+        file_name="${ARCH}${version}.sh"
     else
+        # All other agents use standard binaries
         file_name="${ARCH}.sh"
     fi
 
@@ -254,13 +253,15 @@ download_and_execute_agent_script() {
     local versions
 
     # Linux install uses V0/V1 binaries
-    if [[ "$monitor_type" == "linux" && "$action" == "install" ]]; then
-        versions=("$BIN_VERSION")
+	if [[ "$monitor_type" == "linux" && "$action" == "install" ]]; then
+    	versions=("$BIN_VERSION")
 
-        # Fallback to V1 if V0 download fails
-        if [[ "$BIN_VERSION" != "V1" ]]; then
-            versions+=("V1")
-        fi
+    if [[ "$BIN_VERSION" != "V1" ]]; then
+        versions+=("V1")
+    fi
+	else
+    	versions=("")
+	fi
     else
         # All other agents use normal arm64.sh / amd64.sh
         versions=("")
@@ -373,7 +374,7 @@ validate_inputs
 check_required_tools
 check_os_architecture
 
-# Binary version is only required for Linux install agent
+# Only Linux agent requires binary version detection
 if [[ "$MONITOR_TYPE" == "linux" && "$ACTION" == "install" ]]; then
     set_binary_version
 fi
