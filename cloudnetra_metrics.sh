@@ -59,11 +59,11 @@ BIN_VERSION=""
 
 initialize_logging() {
 
-    mkdir -p "$LOGDIR"
+	mkdir -p "$LOGDIR"
 
-    if [ ! -f "$LOGFILE" ]; then
-        touch "$LOGFILE"
-    fi
+	if [ ! -f "$LOGFILE" ]; then
+		touch "$LOGFILE"
+	fi
 }
 
 ###############################################################################
@@ -72,16 +72,16 @@ initialize_logging() {
 
 log_message() {
 
-    local color="$1"
-    local message="$2"
+	local color="$1"
+	local message="$2"
 
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+	local timestamp
+	timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    local formatted_message="[$timestamp] : $message"
+	local formatted_message="[$timestamp] : $message"
 
-    echo -e "${color}${formatted_message}${RESET}"
-    echo "$formatted_message" >> "$LOGFILE"
+	echo -e "${color}${formatted_message}${RESET}"
+	echo "$formatted_message" >>"$LOGFILE"
 }
 
 ###############################################################################
@@ -90,7 +90,7 @@ log_message() {
 
 show_help() {
 
-cat << EOF
+	cat <<EOF
 
 CloudNetra Metrics Agent Installer
 
@@ -140,27 +140,27 @@ EOF
 
 check_required_tools() {
 
-    local tools=(
-        curl
-        wget
-        cut
-        tar
-        gzip
-        sudo
-        bc
-        netstat
-    )
+	local tools=(
+		curl
+		wget
+		cut
+		tar
+		gzip
+		sudo
+		bc
+		netstat
+	)
 
-    for tool in "${tools[@]}"; do
+	for tool in "${tools[@]}"; do
 
-        if ! command -v "$tool" >/dev/null 2>&1; then
+		if ! command -v "$tool" >/dev/null 2>&1; then
 
-            log_message "$RED" \
-            "Required package not found: $tool"
+			log_message "$RED" \
+				"Required package not found: $tool"
 
-            exit 1
-        fi
-    done
+			exit 1
+		fi
+	done
 }
 
 ###############################################################################
@@ -169,48 +169,48 @@ check_required_tools() {
 
 check_os_architecture() {
 
-    case "$(uname)" in
+	case "$(uname)" in
 
-        Linux)
-            OS="linux"
-            ;;
+	Linux)
+		OS="linux"
+		;;
 
-        Darwin)
-            OS="darwin"
-            ;;
+	Darwin)
+		OS="darwin"
+		;;
 
-        *)
-            log_message "$RED" \
-            "Unsupported operating system."
+	*)
+		log_message "$RED" \
+			"Unsupported operating system."
 
-            exit 1
-            ;;
-    esac
+		exit 1
+		;;
+	esac
 
-    case "$(uname -m)" in
+	case "$(uname -m)" in
 
-        x86_64)
-            ARCH="amd64"
-            ;;
+	x86_64)
+		ARCH="amd64"
+		;;
 
-        aarch64|arm64)
-            ARCH="arm64"
-            ;;
+	aarch64 | arm64)
+		ARCH="arm64"
+		;;
 
-        armv7l|armv6l)
-            ARCH="armv7"
-            ;;
+	armv7l | armv6l)
+		ARCH="armv7"
+		;;
 
-        *)
-            log_message "$RED" \
-            "Unsupported architecture: $(uname -m)"
+	*)
+		log_message "$RED" \
+			"Unsupported architecture: $(uname -m)"
 
-            exit 1
-            ;;
-    esac
+		exit 1
+		;;
+	esac
 
-    log_message "$GREEN" "Detected OS: $OS"
-    log_message "$GREEN" "Detected Architecture: $ARCH"
+	log_message "$GREEN" "Detected OS: $OS"
+	log_message "$GREEN" "Detected Architecture: $ARCH"
 }
 
 ###############################################################################
@@ -228,70 +228,70 @@ check_os_architecture() {
 
 set_binary_version() {
 
-    if [ ! -f /etc/os-release ]; then
+	if [ ! -f /etc/os-release ]; then
 
-        log_message "$RED" \
-        "Unable to determine OS version."
+		log_message "$RED" \
+			"Unable to determine OS version."
 
-        exit 1
-    fi
+		exit 1
+	fi
 
-    . /etc/os-release
+	. /etc/os-release
 
-    local os_id
-    local os_version
+	local os_id
+	local os_version
 
-    os_id=$(echo "$ID" | tr '[:upper:]' '[:lower:]')
-    os_version=$(echo "$VERSION_ID" | cut -d '.' -f1)
+	os_id=$(echo "$ID" | tr '[:upper:]' '[:lower:]')
+	os_version=$(echo "$VERSION_ID" | cut -d '.' -f1)
 
-    log_message "$BLUE" \
-    "Detected Distribution: ${os_id} ${os_version}"
+	log_message "$BLUE" \
+		"Detected Distribution: ${os_id} ${os_version}"
 
-    case "$os_id" in
+	case "$os_id" in
 
-        ubuntu)
+	ubuntu)
 
-            if [[ "$os_version" == "18" || "$os_version" == "20" ]]; then
-                BIN_VERSION="V0"
-            else
-                BIN_VERSION="V1"
-            fi
-            ;;
+		if [[ "$os_version" == "18" || "$os_version" == "20" ]]; then
+			BIN_VERSION="V0"
+		else
+			BIN_VERSION="V1"
+		fi
+		;;
 
-        rhel)
+	rhel)
 
-            if [[ "$os_version" == "8" ]]; then
-                BIN_VERSION="V0"
-            else
-                BIN_VERSION="V1"
-            fi
-            ;;
+		if [[ "$os_version" == "8" ]]; then
+			BIN_VERSION="V0"
+		else
+			BIN_VERSION="V1"
+		fi
+		;;
 
-        amzn)
+	amzn)
 
-            if [[ "$os_version" == "2" ]]; then
-                BIN_VERSION="V0"
-            else
-                BIN_VERSION="V1"
-            fi
-            ;;
+		if [[ "$os_version" == "2" ]]; then
+			BIN_VERSION="V0"
+		else
+			BIN_VERSION="V1"
+		fi
+		;;
 
-        centos)
+	centos)
 
-            if [[ "$os_version" == "7" ]]; then
-                BIN_VERSION="V0"
-            else
-                BIN_VERSION="V1"
-            fi
-            ;;
+		if [[ "$os_version" == "7" ]]; then
+			BIN_VERSION="V0"
+		else
+			BIN_VERSION="V1"
+		fi
+		;;
 
-        *)
-            BIN_VERSION="V1"
-            ;;
-    esac
+	*)
+		BIN_VERSION="V1"
+		;;
+	esac
 
-    log_message "$GREEN" \
-    "Selected Binary Version: ${BIN_VERSION}"
+	log_message "$GREEN" \
+		"Selected Binary Version: ${BIN_VERSION}"
 }
 
 ###############################################################################
@@ -299,21 +299,24 @@ set_binary_version() {
 ###############################################################################
 
 generate_agent_script_url() {
+	local action="$1"
+	local monitor_type="$2"
+	local env="$3"
+	local version="$4"
 
-    local action="$1"
-    local monitor_type="$2"
-    local env="$3"
-    local version="$4"
+	local file_name
 
-    local file_name
+	if [ "$monitor_type" = "linux" ]; then
+		if [ "$action" = "install" ]; then
+			file_name="${ARCH}${version}.sh"
+		else
+			file_name="${ARCH}.sh"
+		fi
+	else
+		file_name="${ARCH}.sh"
+	fi
 
-    if [ "$action" = "install" ]; then
-        file_name="${ARCH}${version}.sh"
-    else
-        file_name="${ARCH}.sh"
-    fi
-
-    echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/${OS}/${monitor_type}/${action}/${file_name}"
+	echo "https://raw.githubusercontent.com/groots-software-technologies/cn_metrics_remote_agent/${env}/${OS}/${monitor_type}/${action}/${file_name}"
 }
 
 ###############################################################################
@@ -322,82 +325,92 @@ generate_agent_script_url() {
 
 download_and_execute_agent_script() {
 
-    local action="$1"
-    local monitor_type="$2"
-    local digital_key="$3"
-    local env="$4"
+	local action="$1"
+	local monitor_type="$2"
+	local digital_key="$3"
+	local env="$4"
 
-    local runtime_env="$env"
+	local runtime_env="$env"
 
-    if [ "$env" = "main" ]; then
-        runtime_env="prod"
-    fi
+	if [ "$env" = "main" ]; then
+		runtime_env="prod"
+	fi
 
-    local versions=("$BIN_VERSION")
+	local versions
 
-    if [ "$BIN_VERSION" != "V1" ]; then
-        versions+=("V1")
-    fi
+	if [ "$monitor_type" = "linux" ]; then
+		versions=("$BIN_VERSION")
 
-    for version in "${versions[@]}"; do
+		if [ "$BIN_VERSION" != "V1" ]; then
+			versions+=("V1")
+		fi
+	else
+		versions=("")
+	fi
 
-        local script_url
+	for version in "${versions[@]}"; do
 
-        script_url=$(
-            generate_agent_script_url \
-            "$action" \
-            "$monitor_type" \
-            "$env" \
-            "$version"
-        )
+		local script_url
 
-        log_message "$BLUE" \
-        "Downloading: $script_url"
+		script_url=$(
+			generate_agent_script_url \
+				"$action" \
+				"$monitor_type" \
+				"$env" \
+				"$version"
+		)
 
-        if curl \
-            -f \
-            -L \
-            --retry 3 \
-            --connect-timeout 10 \
-            -o agent.sh \
-            "$script_url"
-        then
+		log_message "$BLUE" \
+			"Downloading: $script_url"
 
-            chmod +x agent.sh
+		if curl \
+			-f \
+			-L \
+			--retry 3 \
+			--connect-timeout 10 \
+			-o agent.sh \
+			"$script_url"; then
 
-            if [ "$action" = "install" ]; then
+			chmod +x agent.sh
 
-                log_message "$YELLOW" \
-                "Executing installation script"
+			if [ "$action" = "install" ]; then
 
-                ./agent.sh \
-                    -k "$digital_key" \
-                    -e "$runtime_env"
+				log_message "$YELLOW" \
+					"Executing installation script"
 
-            else
+				./agent.sh \
+					-k "$digital_key" \
+					-e "$runtime_env"
 
-                log_message "$YELLOW" \
-                "Executing uninstall script"
+			else
 
-                ./agent.sh
-            fi
+				log_message "$YELLOW" \
+					"Executing uninstall script"
 
-            rm -f agent.sh
+				./agent.sh
+			fi
 
-            log_message "$GREEN" \
-            "Execution completed successfully."
+			rm -f agent.sh
 
-            return 0
-        fi
+			log_message "$GREEN" \
+				"Execution completed successfully."
 
-        log_message "$YELLOW" \
-        "Download failed for ${ARCH}${version}.sh"
-    done
+			return 0
+		fi
 
-    log_message "$RED" \
-    "All download attempts failed."
+		if [ "$monitor_type" = "linux" ]; then
+			log_message "$YELLOW" \
+				"Download failed for ${ARCH}${version}.sh"
+		else
+			log_message "$YELLOW" \
+				"Download failed for ${ARCH}.sh"
+		fi
+	done
 
-    exit 1
+	log_message "$RED" \
+		"All download attempts failed."
+
+	exit 1
 }
 
 ###############################################################################
@@ -406,33 +419,33 @@ download_and_execute_agent_script() {
 
 validate_inputs() {
 
-    if [ -z "$MONITOR_TYPE" ]; then
-        log_message "$RED" "Monitor type is required."
-        exit 1
-    fi
+	if [ -z "$MONITOR_TYPE" ]; then
+		log_message "$RED" "Monitor type is required."
+		exit 1
+	fi
 
-    if [ -z "$ACTION" ]; then
-        log_message "$RED" "Action is required."
-        exit 1
-    fi
+	if [ -z "$ACTION" ]; then
+		log_message "$RED" "Action is required."
+		exit 1
+	fi
 
-    if [ "$ACTION" != "install" ] &&
-       [ "$ACTION" != "uninstall" ]; then
+	if [ "$ACTION" != "install" ] &&
+		[ "$ACTION" != "uninstall" ]; then
 
-        log_message "$RED" \
-        "Action must be install or uninstall."
+		log_message "$RED" \
+			"Action must be install or uninstall."
 
-        exit 1
-    fi
+		exit 1
+	fi
 
-    if [ "$ACTION" = "install" ] &&
-       [ -z "$DIGITAL_KEY" ]; then
+	if [ "$ACTION" = "install" ] &&
+		[ -z "$DIGITAL_KEY" ]; then
 
-        log_message "$RED" \
-        "Digital key is required for installation."
+		log_message "$RED" \
+			"Digital key is required for installation."
 
-        exit 1
-    fi
+		exit 1
+	fi
 }
 
 ###############################################################################
@@ -441,42 +454,41 @@ validate_inputs() {
 
 main() {
 
-    initialize_logging
+	initialize_logging
 
-    if [ $# -eq 0 ]; then
-        show_help
-        exit 0
-    fi
+	if [ $# -eq 0 ]; then
+		show_help
+		exit 0
+	fi
 
-    while getopts "m:a:k:e:h" opt
-    do
-        case "$opt" in
+	while getopts "m:a:k:e:h" opt; do
+		case "$opt" in
 
-            m) MONITOR_TYPE="$OPTARG" ;;
-            a) ACTION="$OPTARG" ;;
-            k) DIGITAL_KEY="$OPTARG" ;;
-            e) ENV="$OPTARG" ;;
-            h)
-                show_help
-                exit 0
-                ;;
-            *)
-                show_help
-                exit 1
-                ;;
-        esac
-    done
+		m) MONITOR_TYPE="$OPTARG" ;;
+		a) ACTION="$OPTARG" ;;
+		k) DIGITAL_KEY="$OPTARG" ;;
+		e) ENV="$OPTARG" ;;
+		h)
+			show_help
+			exit 0
+			;;
+		*)
+			show_help
+			exit 1
+			;;
+		esac
+	done
 
-    validate_inputs
-    check_required_tools
-    check_os_architecture
-    set_binary_version
+	validate_inputs
+	check_required_tools
+	check_os_architecture
+	set_binary_version
 
-    download_and_execute_agent_script \
-        "$ACTION" \
-        "$MONITOR_TYPE" \
-        "$DIGITAL_KEY" \
-        "$ENV"
+	download_and_execute_agent_script \
+		"$ACTION" \
+		"$MONITOR_TYPE" \
+		"$DIGITAL_KEY" \
+		"$ENV"
 }
 
 ###############################################################################
