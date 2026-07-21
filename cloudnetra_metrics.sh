@@ -15,9 +15,14 @@
 #
 # Supported Monitor Types:
 #   - linux
+#   - docker
 #   - apache
 #   - nginx
 #   - mysql
+#   - postgresql
+#   - redis
+#   - jenkins
+#   - kubernetes
 #
 # Usage:
 #   ./cloudnetra_metrics.sh -m linux -a install -k DIGITAL_KEY
