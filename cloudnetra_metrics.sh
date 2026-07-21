@@ -132,6 +132,7 @@ check_required_tools() {
         cut
         chmod
         mktemp
+        netstat
     )
     for tool in "${tools[@]}"; do
         if ! command -v "${tool}" >/dev/null 2>&1; then
