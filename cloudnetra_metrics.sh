@@ -54,9 +54,14 @@ BIN_VERSION=""
 TEMP_SCRIPT=""
 SUPPORTED_MONITORS=(
     "linux"
+    "docker"
     "apache"
     "nginx"
     "mysql"
+    "postgresql"
+    "redis"
+    "jenkins"
+    "kubernetes"
 )
 ###############################################################################
 # Cleanup
@@ -299,20 +304,6 @@ download_and_execute_agent_script() {
 ###############################################################################
 # Input Validation
 ###############################################################################
-validate_monitor_type() {
-    local valid=false
-    for monitor in "${SUPPORTED_MONITORS[@]}"; do
-        if [[ "${MONITOR_TYPE}" == "${monitor}" ]]; then
-            valid=true
-            break
-        fi
-    done
-    if [[ "${valid}" == false ]]; then
-        log_message "${RED}" \
-            "Unsupported monitor type: ${MONITOR_TYPE}"
-        exit 1
-    fi
-}
 validate_environment() {
     case "${ENVIRONMENT}" in
         main|dev)
@@ -343,7 +334,6 @@ validate_inputs() {
             "Digital key is required for installation."
         exit 1
     fi
-    validate_monitor_type
     validate_environment
 }
 ###############################################################################
