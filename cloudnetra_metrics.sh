@@ -276,26 +276,54 @@ download_and_execute_agent_script() {
         )
         log_message "${BLUE}" "Downloading: ${script_url}"
         TEMP_SCRIPT=$(mktemp)
-        if curl \
-            --fail \
-            --location \
-            --retry 3 \
-            --connect-timeout 10 \
-            --output "${TEMP_SCRIPT}" \
-            "${script_url}"
-        then
-            chmod +x "${TEMP_SCRIPT}"
-            if [[ "${action}" == "install" ]]; then
-                "${TEMP_SCRIPT}" \
-                    -k "${digital_key}" \
-                    -e "${runtime_environment}"
-            else
-                "${TEMP_SCRIPT}"
-            fi
-            log_message "${GREEN}" \
-                "Execution completed successfully."
-            return 0
+if curl \
+    --fail \
+    --location \
+    --retry 3 \
+    --connect-timeout 10 \
+    --output "${TEMP_SCRIPT}" \
+    "${script_url}"
+then
+
+    ###########################################################################
+    # Validate Downloaded Installer
+    ###########################################################################
+    chmod +x "${TEMP_SCRIPT}"
+
+    if [[ "${action}" == "install" ]]; then
+        log_message "${BLUE}" "Validating installer binary..."
+
+        if ! file "${TEMP_SCRIPT}" | grep -qE 'ELF|executable|shell script'; then
+            log_message "${RED}" \
+                "Downloaded installer is not a valid executable."
+
+            file "${TEMP_SCRIPT}"
+            rm -f "${TEMP_SCRIPT}"
+            TEMP_SCRIPT=""
+
+            continue
         fi
+
+        log_message "${GREEN}" \
+            "Installer binary validation successful."
+    fi
+
+    ###########################################################################
+    # Execute Installer
+    ###########################################################################
+    if [[ "${action}" == "install" ]]; then
+        "${TEMP_SCRIPT}" \
+            -k "${digital_key}" \
+            -e "${runtime_environment}"
+    else
+        "${TEMP_SCRIPT}"
+    fi
+
+    log_message "${GREEN}" \
+        "Execution completed successfully."
+
+    return 0
+fi
         if [[ "${monitor}" == "linux" && "${action}" == "install" ]]; then
             log_message "${YELLOW}" \
                 "Download failed for ${ARCH}${version}.sh"
